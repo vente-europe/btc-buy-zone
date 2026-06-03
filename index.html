@@ -6,12 +6,15 @@
 <title>BTC Akumulacja na Bessę — DCA + Price Grid</title>
 <style>
   * { margin:0; padding:0; box-sizing:border-box; }
+  html, body { overscroll-behavior:none; }
   body {
     font-family:'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
     background:linear-gradient(135deg,#1e3c72 0%,#2a5298 100%);
     padding:20px; min-height:100vh; color:#222;
+    -webkit-text-size-adjust:100%;
   }
   .container { max-width:1600px; margin:0 auto; background:#fff; border-radius:20px; padding:30px; box-shadow:0 20px 60px rgba(0,0,0,.3); }
+  @media (max-width:600px){ body{ padding:8px; } .container{ padding:16px; border-radius:14px; } }
 
   .workspace { display:flex; gap:22px; align-items:flex-start; }
   .col-left { flex:1 1 480px; min-width:0; }
@@ -54,7 +57,7 @@
   .slider-val { font-weight:700; color:#1e3c72; font-size:18px; }
   .slider-num { width:120px; padding:5px 8px; border:2px solid #ddd; border-radius:7px; font-size:16px; font-weight:700; color:#1e3c72; text-align:right; }
   .slider-num:focus { outline:none; border-color:#2a5298; }
-  input[type=range] { width:100%; height:8px; border-radius:5px; -webkit-appearance:none; background:#d7dee8; outline:none; }
+  input[type=range] { width:100%; height:8px; border-radius:5px; -webkit-appearance:none; background:#d7dee8; outline:none; touch-action:none; }
   input[type=range]::-webkit-slider-thumb { -webkit-appearance:none; width:22px; height:22px; border-radius:50%; background:#f39c12; cursor:pointer; box-shadow:0 2px 6px rgba(0,0,0,.3); }
   input[type=range]::-moz-range-thumb { width:22px; height:22px; border:none; border-radius:50%; background:#f39c12; cursor:pointer; }
   .hint { color:#888; font-size:12px; margin-top:4px; }
