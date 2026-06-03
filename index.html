@@ -1,0 +1,746 @@
+<!DOCTYPE html>
+<html lang="pl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>BTC Akumulacja na Bessę — DCA + Price Grid</title>
+<style>
+  * { margin:0; padding:0; box-sizing:border-box; }
+  body {
+    font-family:'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    background:linear-gradient(135deg,#1e3c72 0%,#2a5298 100%);
+    padding:20px; min-height:100vh; color:#222;
+  }
+  .container { max-width:1600px; margin:0 auto; background:#fff; border-radius:20px; padding:30px; box-shadow:0 20px 60px rgba(0,0,0,.3); }
+
+  .workspace { display:flex; gap:22px; align-items:flex-start; }
+  .col-left { flex:1 1 480px; min-width:0; }
+  .col-right { flex:1 1 540px; min-width:0; position:sticky; top:16px; }
+  .col-left .panel:last-child, .col-right .panel:last-child { margin-bottom:0; }
+  @media (max-width:1100px){ .workspace{ display:block; } .col-right{ position:static; margin-top:22px; } }
+
+  .plan-compact { padding:18px; }
+  .plan-compact .panel-title { font-size:16px; margin-bottom:12px; }
+  .plan-compact .btn-export { padding:7px 12px; font-size:12px; }
+  .plan-compact .hero { padding:16px; }
+  .plan-compact .hero .label { font-size:11px; }
+  .plan-compact .hero .main { font-size:30px; }
+  .plan-compact .hero .main small { font-size:14px; }
+  .plan-compact .hero-grid { gap:8px; margin-top:12px; grid-template-columns:repeat(auto-fit,minmax(115px,1fr)); }
+  .plan-compact .hero-cell { padding:8px 10px; }
+  .plan-compact .hero-cell .l { font-size:11px; }
+  .plan-compact .hero-cell .v { font-size:15px; }
+  .plan-compact .refbar { gap:8px; margin-top:12px; }
+  .plan-compact .ref { min-width:108px; padding:10px; }
+  .plan-compact .ref .v { font-size:15px; }
+  .plan-compact .ref .s { font-size:11px; }
+  h1 { color:#1e3c72; font-size:26px; margin-bottom:6px; }
+  .subtitle { color:#666; margin-bottom:24px; font-size:14px; }
+
+  .panel { background:#f8f9fa; padding:24px; border-radius:15px; margin-bottom:22px; }
+  .panel-title { color:#1e3c72; font-size:18px; font-weight:600; margin-bottom:18px; display:flex; align-items:center; gap:8px; }
+
+  .btn-export { margin-left:auto; background:linear-gradient(135deg,#16a085,#1e8449); color:#fff; border:none; padding:10px 18px; border-radius:9px; font-size:14px; font-weight:600; cursor:pointer; display:inline-flex; align-items:center; gap:7px; transition:transform .15s, box-shadow .15s; }
+  .btn-export:hover { transform:translateY(-1px); box-shadow:0 8px 18px rgba(22,160,133,.35); }
+
+  .grid2 { display:grid; grid-template-columns:repeat(auto-fit,minmax(240px,1fr)); gap:20px; }
+
+  label { display:block; font-weight:600; font-size:13px; margin-bottom:6px; color:#333; }
+  input[type=number] { width:100%; padding:11px; border:2px solid #ddd; border-radius:8px; font-size:15px; }
+  input[type=number]:focus { outline:none; border-color:#2a5298; }
+
+  .slider-row { margin-bottom:6px; }
+  .slider-head { display:flex; justify-content:space-between; align-items:baseline; margin-bottom:8px; }
+  .slider-val { font-weight:700; color:#1e3c72; font-size:18px; }
+  .slider-num { width:120px; padding:5px 8px; border:2px solid #ddd; border-radius:7px; font-size:16px; font-weight:700; color:#1e3c72; text-align:right; }
+  .slider-num:focus { outline:none; border-color:#2a5298; }
+  input[type=range] { width:100%; height:8px; border-radius:5px; -webkit-appearance:none; background:#d7dee8; outline:none; }
+  input[type=range]::-webkit-slider-thumb { -webkit-appearance:none; width:22px; height:22px; border-radius:50%; background:#f39c12; cursor:pointer; box-shadow:0 2px 6px rgba(0,0,0,.3); }
+  input[type=range]::-moz-range-thumb { width:22px; height:22px; border:none; border-radius:50%; background:#f39c12; cursor:pointer; }
+  .hint { color:#888; font-size:12px; margin-top:4px; }
+
+  .split-bar { width:100%; height:34px; border-radius:8px; overflow:hidden; display:flex; margin-top:10px; box-shadow:inset 0 2px 4px rgba(0,0,0,.1); }
+  .split-seg { height:100%; display:flex; align-items:center; justify-content:center; color:#fff; font-weight:700; font-size:13px; transition:width .15s; white-space:nowrap; }
+  .split-dca { background:linear-gradient(90deg,#2980b9,#2c3e50); }
+  .split-grid { background:linear-gradient(90deg,#16a085,#1e8449); }
+
+  input[type=date] { padding:10px; border:2px solid #ddd; border-radius:8px; font-size:14px; }
+  input[type=date]:focus { outline:none; border-color:#2a5298; }
+
+  .cal { position:relative; height:56px; margin-top:16px; }
+  .cal-line { position:absolute; top:24px; left:0; right:0; height:3px; background:#d7dee8; border-radius:2px; }
+  .cal-tick { position:absolute; top:0; text-align:center; }
+  .cal-num { font-size:11px; color:#2a5298; font-weight:700; line-height:1.2; }
+  .cal-dot { width:9px; height:9px; border-radius:50%; background:#f39c12; margin:3px auto; box-shadow:0 0 0 2px #fff; }
+  .cal-date { font-size:11px; color:#555; white-space:nowrap; }
+  .cal-tick.end .cal-dot { background:#e74c3c; }
+
+  .steps-head { font-weight:700; color:#1e3c72; font-size:14px; margin:20px 0 10px; }
+  .dim { opacity:.45; pointer-events:none; }
+
+  .lad-title { color:#1e3c72; font-size:15px; margin-bottom:10px; }
+  .lad-head, .lad-row { display:grid; grid-template-columns:36px 150px 1fr 110px 110px; gap:10px; align-items:center; }
+  .lad-head { font-size:11px; color:#888; text-transform:uppercase; padding:4px 0; border-bottom:2px solid #eee; }
+  .lad-row { padding:6px 0; border-bottom:1px solid #f0f0f0; font-size:13px; }
+  .lad-i { font-weight:700; color:#1e3c72; }
+  .lad-price { color:#555; }
+  .lad-bar-wrap { background:#f0f3f7; border-radius:5px; height:18px; overflow:hidden; }
+  .lad-bar { height:100%; border-radius:5px; min-width:2px; }
+  .lad-amt { text-align:right; font-weight:700; }
+  .lad-btc { text-align:right; color:#888; }
+
+  .scenario-box { background:#e8f4f8; border-left:4px solid #2196f3; padding:14px 16px; border-radius:10px; margin-top:18px; font-size:14px; color:#0d47a1; line-height:1.6; }
+  .scenario-box b { color:#1e3c72; }
+
+  .hero { background:linear-gradient(135deg,#667eea,#764ba2); color:#fff; border-radius:15px; padding:26px; }
+  .hero .label { font-size:13px; opacity:.85; text-transform:uppercase; letter-spacing:.4px; }
+  .hero .main { font-size:46px; font-weight:800; line-height:1.1; margin:6px 0 2px; }
+  .hero .main small { font-size:20px; font-weight:600; opacity:.9; }
+  .hero-grid { display:grid; grid-template-columns:repeat(auto-fit,minmax(160px,1fr)); gap:14px; margin-top:20px; }
+  .hero-cell { background:rgba(255,255,255,.16); padding:14px; border-radius:10px; }
+  .hero-cell .l { font-size:12px; opacity:.85; margin-bottom:4px; }
+  .hero-cell .v { font-size:22px; font-weight:700; }
+
+  .refbar { display:flex; gap:16px; flex-wrap:wrap; margin-top:18px; }
+  .ref { flex:1; min-width:200px; background:#fff; border:2px solid #e0e0e0; border-radius:12px; padding:16px; }
+  .ref .l { font-size:12px; color:#666; text-transform:uppercase; letter-spacing:.3px; margin-bottom:5px; }
+  .ref .v { font-size:20px; font-weight:700; color:#1e3c72; }
+  .ref .s { font-size:12px; color:#888; margin-top:3px; }
+  .ref.dca { border-color:#2980b9; }
+  .ref.grid { border-color:#16a085; }
+
+  .chartwrap { background:#fff; border:2px solid #eee; border-radius:14px; padding:18px; margin-top:6px; }
+  .chartwrap h4 { color:#1e3c72; font-size:15px; margin-bottom:12px; }
+  svg { width:100%; height:auto; display:block; }
+  .legend { display:flex; gap:18px; flex-wrap:wrap; margin-top:10px; font-size:13px; color:#444; }
+  .legend i { display:inline-block; width:14px; height:14px; border-radius:3px; margin-right:6px; vertical-align:-2px; }
+
+  table { width:100%; border-collapse:collapse; margin-top:6px; font-size:13px; }
+  th { background:#2a5298; color:#fff; padding:10px; text-align:right; font-weight:600; position:sticky; top:0; }
+  th:first-child, td:first-child { text-align:left; }
+  td { padding:9px 10px; border-bottom:1px solid #eee; text-align:right; }
+  tr:hover td { background:#f6f9ff; }
+  .tablewrap { max-height:440px; overflow:auto; border-radius:12px; border:2px solid #eee; }
+  details { margin-top:20px; }
+  summary { cursor:pointer; font-weight:600; color:#1e3c72; padding:8px 0; font-size:15px; }
+</style>
+</head>
+<body>
+<div class="container">
+  <h1>📉 BTC Akumulacja na Bessę</h1>
+  <p class="subtitle">Jeden plan na dwie techniki naraz: część puli w <b>DCA</b> (równo co dzień), część w <b>Price Grid</b> (więcej im niżej).</p>
+
+  <div class="workspace">
+  <div class="col-left">
+
+  <!-- ZAŁOŻENIA -->
+  <div class="panel">
+    <div class="panel-title">⚙️ Założenia</div>
+    <div class="grid2">
+      <div>
+        <label>Gotówka do wydania (USDT)</label>
+        <input type="number" id="cash" value="50000" step="1000" min="0">
+      </div>
+      <div>
+        <label>Dodatkowa gotówka (opcja)</label>
+        <input type="number" id="extraCash" value="0" step="1000" min="0" placeholder="0">
+        <div class="hint">Dolicza się do głównej puli.</div>
+      </div>
+    </div>
+
+    <div class="grid2" style="margin-top:20px;">
+      <div>
+        <label>Cena BTC dziś (USDT)</label>
+        <input type="number" id="priceToday" value="70000" step="1000" min="1">
+      </div>
+      <div>
+        <label>BTC już posiadane (opcja)</label>
+        <input type="number" id="existingBtc" value="0" step="0.01" min="0" placeholder="0">
+        <div class="hint">Dolicza się do końcowego stanu i wartości portfela.</div>
+      </div>
+    </div>
+
+    <div class="grid2" style="margin-top:20px;">
+      <div class="slider-row">
+        <div class="slider-head">
+          <label style="margin:0;">Cena na końcu okresu (dno, USDT)</label>
+          <input type="number" id="bottomNum" class="slider-num" value="30000" step="500" min="0">
+        </div>
+        <input type="range" id="bottom" min="10000" max="150000" step="500" value="30000">
+        <div class="hint">Cena, której oczekujesz na końcu okresu — wpisz dokładnie lub przesuń suwak.</div>
+      </div>
+      <div class="slider-row">
+        <div class="slider-head">
+          <label style="margin:0;">Czas zakupów (dni)</label>
+          <span class="slider-val" id="daysVal">50</span>
+        </div>
+        <input type="range" id="days" min="2" max="365" step="1" value="50">
+        <div class="hint">Im dłużej, tym mniej gotówki dziennie.</div>
+      </div>
+    </div>
+
+    <div style="margin-top:18px;">
+      <label>Kalendarz zakupów — start (opcja)</label>
+      <input type="date" id="startDate">
+      <div class="cal" id="calStrip"></div>
+    </div>
+
+    <div class="grid2" style="margin-top:20px;">
+      <div class="slider-row">
+        <div class="slider-head">
+          <label style="margin:0;">Podział gotówki: DCA / Grid</label>
+          <span class="slider-val" id="splitVal">50% / 50%</span>
+        </div>
+        <input type="range" id="split" min="0" max="100" step="5" value="50">
+        <div class="split-bar">
+          <div class="split-seg split-dca" id="segDca">DCA</div>
+          <div class="split-seg split-grid" id="segGrid">Grid</div>
+        </div>
+        <div class="hint">Ile % puli idzie w DCA, reszta w Grid. 100% = czyste DCA, 0% = czysty Grid.</div>
+      </div>
+      <div class="slider-row">
+        <div class="slider-head">
+          <label style="margin:0;">Zmienność ceny (% dzienna)</label>
+          <span class="slider-val" id="volVal">5%</span>
+        </div>
+        <input type="range" id="vol" min="0" max="20" step="0.5" value="5">
+        <div class="hint">Jak niestabilny jest wykres: 0% = gładka linia spadku, więcej = mocniejsze wahania.</div>
+      </div>
+    </div>
+
+    <div class="steps-head">📉 Grid — schody (kupuj więcej niżej)</div>
+    <div class="grid2">
+      <div class="slider-row">
+        <div class="slider-head">
+          <label style="margin:0;">Próg ceny na schód — Grid (USDT)</label>
+          <span class="slider-val" id="gridStepVal">2 000</span>
+        </div>
+        <input type="range" id="gridStep" min="1000" max="10000" step="1000" value="2000">
+        <div class="hint">Co tyle spadku ceny pojawia się nowy schód grida.</div>
+      </div>
+      <div class="slider-row">
+        <div class="slider-head">
+          <label style="margin:0;">Wzrost zakupu na schód — Grid (%)</label>
+          <span class="slider-val" id="gridGrowthVal">+50%</span>
+        </div>
+        <input type="range" id="gridGrowth" min="0" max="100" step="5" value="50">
+        <div class="hint" id="stepInfo">—</div>
+      </div>
+    </div>
+
+    <div class="steps-head" style="margin-top:18px;">
+      <label style="display:flex; align-items:center; gap:8px; cursor:pointer; margin:0;">
+        <input type="checkbox" id="dcaSteps" style="width:18px;height:18px;cursor:pointer;accent-color:#2980b9;">
+        🟦 Schody też dla DCA (kupuj mocniej na niższych cenach)
+      </label>
+    </div>
+    <div class="grid2 dim" id="dcaStepsBox">
+      <div class="slider-row">
+        <div class="slider-head">
+          <label style="margin:0;">Próg ceny na schód — DCA (USDT)</label>
+          <span class="slider-val" id="gridStepDcaVal">5 000</span>
+        </div>
+        <input type="range" id="gridStepDca" min="1000" max="10000" step="1000" value="5000">
+        <div class="hint">Co tyle spadku ceny rośnie dzienny zakup DCA.</div>
+      </div>
+      <div class="slider-row">
+        <div class="slider-head">
+          <label style="margin:0;">Wzrost zakupu na schód — DCA (%)</label>
+          <span class="slider-val" id="gridGrowthDcaVal">+30%</span>
+        </div>
+        <input type="range" id="gridGrowthDca" min="0" max="100" step="5" value="30">
+        <div class="hint" id="stepInfoDca">—</div>
+      </div>
+    </div>
+
+    <div class="scenario-box" id="scenario"></div>
+  </div>
+
+  <!-- WYKRES CENY (pod wyjaśnieniem) -->
+  <div class="panel">
+    <div class="panel-title">📈 Ścieżka ceny</div>
+    <div class="chartwrap">
+      <h4>Przykładowy przebieg ze zmiennością</h4>
+      <svg id="priceChart" viewBox="0 0 800 260" preserveAspectRatio="xMidYMid meet"></svg>
+      <div class="legend">
+        <span><i style="background:#2980b9"></i>Realna cena (z wahaniami)</span>
+        <span><i style="background:#b0bcc9"></i>Trend spadku (odniesienie)</span>
+      </div>
+    </div>
+  </div>
+
+  </div><!-- /col-left -->
+
+  <div class="col-right">
+    <!-- ŁĄCZNY PLAN (kompakt, prawy górny róg) -->
+    <div class="panel plan-compact">
+      <div class="panel-title">🎯 Łączny plan
+        <button class="btn-export" onclick="exportCsv()">⬇️ Eksport</button>
+      </div>
+      <div class="hero">
+        <div class="label">Razem BTC (posiadane + dokupione)</div>
+        <div class="main" id="totBtc">— <small>BTC</small></div>
+        <div class="hero-grid">
+          <div class="hero-cell"><div class="l">Dokupisz</div><div class="v" id="heroBought">—</div></div>
+          <div class="hero-cell"><div class="l">Masz teraz</div><div class="v" id="heroExisting">—</div></div>
+          <div class="hero-cell"><div class="l">Śr. cena dokupu</div><div class="v" id="totAvg">—</div></div>
+          <div class="hero-cell"><div class="l">Wartość na dnie</div><div class="v" id="totValBottom">—</div></div>
+          <div class="hero-cell"><div class="l">Wartość po powrocie</div><div class="v" id="totValToday">—</div></div>
+        </div>
+      </div>
+      <div class="refbar">
+        <div class="ref dca"><div class="l">Część DCA</div><div class="v" id="dcaBtc">—</div><div class="s" id="dcaInfo">—</div></div>
+        <div class="ref grid"><div class="l">Część Grid</div><div class="v" id="gridBtc">—</div><div class="s" id="gridInfo">—</div></div>
+        <div class="ref"><div class="l">Gdyby wszystko dziś</div><div class="v" id="refToday">—</div><div class="s">brak rozłożenia</div></div>
+        <div class="ref"><div class="l">Idealnie na dnie</div><div class="v" id="refBottom">—</div><div class="s">maksimum</div></div>
+      </div>
+    </div>
+
+    <!-- DRABINA GRIDA -->
+    <div class="panel">
+      <div class="panel-title">🪜 Drabina pozycji — ile kupujesz na każdym schodzie</div>
+      <div id="ladderGrid"></div>
+      <div id="ladderDca" style="margin-top:22px;"></div>
+    </div>
+  </div><!-- /col-right -->
+  </div><!-- /workspace -->
+
+  <!-- WYKRES GOTÓWKI -->
+  <div class="panel">
+    <div class="panel-title">📊 Gotówka dziennie — schody</div>
+    <div class="chartwrap">
+      <h4>Gotówka wydawana każdego dnia — schody Grida</h4>
+      <svg id="cashChart" viewBox="0 0 800 260" preserveAspectRatio="xMidYMid meet"></svg>
+      <div class="legend">
+        <span><i style="background:#2980b9"></i>DCA (równo lub schody)</span>
+        <span><i style="background:#16a085"></i>Grid (schody — skok co próg ceny)</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- TABELA -->
+  <details>
+    <summary>📋 Pokaż plan dzień po dniu</summary>
+    <div class="tablewrap" style="margin-top:12px;">
+      <table>
+        <thead>
+          <tr>
+            <th>Dzień</th><th>Data</th><th>Cena</th>
+            <th>DCA USDT</th><th>Grid USDT</th><th>Razem USDT</th>
+            <th>BTC tego dnia</th><th>Σ BTC</th>
+          </tr>
+        </thead>
+        <tbody id="tableBody"></tbody>
+      </table>
+    </div>
+  </details>
+</div>
+
+<script>
+const fmt = (n,d=2)=> (n||0).toLocaleString('pl-PL',{minimumFractionDigits:d,maximumFractionDigits:d});
+const fmt0 = n=> (n||0).toLocaleString('pl-PL',{maximumFractionDigits:0});
+const $ = id=> document.getElementById(id);
+
+// deterministyczny generator pseudolosowy (powtarzalny dla danego seeda)
+function mulberry32(a){
+  return function(){
+    a |= 0; a = a + 0x6D2B79F5 | 0;
+    let t = Math.imul(a ^ a >>> 15, 1 | a);
+    t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t;
+    return ((t ^ t >>> 14) >>> 0) / 4294967296;
+  };
+}
+
+const MONTHS_PL = ['sty','lut','mar','kwi','maj','cze','lip','sie','wrz','paź','lis','gru'];
+const DAY_MS = 86400000;
+function startDateObj(){
+  const s = $('startDate').value;
+  return s ? new Date(s+'T00:00:00') : new Date();
+}
+function dateAtDay(dayIdx){ // dayIdx 0 = start (1. zakup)
+  return new Date(startDateObj().getTime() + dayIdx*DAY_MS);
+}
+function fmtDate(dt){ return dt.getDate()+' '+MONTHS_PL[dt.getMonth()]; }
+
+function buildCalendar(days){
+  let step = 5;
+  while(days/step > 13) step += 5;          // nie więcej niż ~13 znaczników
+  const start = startDateObj();
+  const ticks = [0];
+  for(let t=step; t<days; t+=step) ticks.push(t);
+  ticks.push(days);
+  let html = '<div class="cal-line"></div>';
+  ticks.forEach((t,i)=>{
+    const left = days>0 ? t/days*100 : 0;
+    const dt = new Date(start.getTime() + t*DAY_MS);
+    let tx = 'translateX(-50%)';
+    if(i===0) tx = 'translateX(0)';
+    if(i===ticks.length-1) tx = 'translateX(-100%)';
+    const isEnd = i===ticks.length-1;
+    html += `<div class="cal-tick${isEnd?' end':''}" style="left:${left}%; transform:${tx}">
+       <div class="cal-num">${t===0?'start':'dz '+t}</div>
+       <div class="cal-dot"></div>
+       <div class="cal-date">${fmtDate(dt)}</div>
+     </div>`;
+  });
+  $('calStrip').innerHTML = html;
+  const endDt = new Date(start.getTime() + days*DAY_MS);
+  $('daysVal').textContent = days+' · do '+fmtDate(endDt);
+}
+
+// Rozkład schodkowy: liczba schodów z zasięgu spadku ÷ próg. Podajesz % wzrostu na schód;
+// kwota 1. (najniższego) schodka dopasowuje się tak, by suma schodów = pula. Wagi geometryczne.
+function buildSteps(pool, step, growthFrac, today, bottom, trend, days){
+  const N = Math.max(1, Math.ceil((today - bottom)/step));   // liczba schodów (bez fantomowego ostatniego)
+  const w = [];
+  for(let b=0;b<N;b++) w.push(Math.pow(1+growthFrac, b));   // schód b = (1+wzrost)^b
+  const wSum = w.reduce((a,c)=>a+c,0) || 1;
+  const base = pool / wSum;                                 // 1. schodek dopasowany
+  const stepAmt = w.map(x=> base*x);                        // kwota na każdy schód
+  // przedziały cenowe schodów + szac. BTC (po cenie środka przedziału)
+  const ladder = [];
+  for(let b=0;b<N;b++){
+    const pHi = today - b*step;
+    const pLo = Math.max(bottom, today - (b+1)*step);
+    const pMid = (pHi+pLo)/2;
+    ladder.push({i:b+1, pHi, pLo, amount:stepAmt[b], btc: pMid>0 ? stepAmt[b]/pMid : 0});
+  }
+  // rozłóż kwotę schodu na dni należące do schodu (do wykresu/tabeli dziennej)
+  const daysInBand = new Array(N).fill(0);
+  const bandOf = [];
+  for(let d=0; d<days; d++){
+    let b = Math.floor((today - trend[d])/step);
+    if(b<0) b=0; if(b>N-1) b=N-1;
+    bandOf.push(b); daysInBand[b]++;
+  }
+  let cash = bandOf.map(b=> daysInBand[b]>0 ? stepAmt[b]/daysInBand[b] : 0);
+  const s = cash.reduce((a,c)=>a+c,0) || 1;
+  cash = cash.map(c=> c * pool / s);                        // gwarancja: cała pula rozdystrybuowana
+  return {cash, N, firstStep:stepAmt[0], lastStep:stepAmt[N-1], growthPct:growthFrac*100, ladder};
+}
+
+function compute(){
+  const cashMain  = parseFloat($('cash').value)||0;
+  const extraCash = parseFloat($('extraCash').value)||0;
+  const cash    = cashMain + extraCash;            // łączna pula do wydania
+  const existingBtc = parseFloat($('existingBtc').value)||0;
+  const today   = parseFloat($('priceToday').value)||0;
+  let   bottom  = parseFloat($('bottomNum').value)||0;
+  const days    = parseInt($('days').value)||2;
+  const split    = parseFloat($('split').value)||0;          // % na DCA
+  const gridStep = parseFloat($('gridStep').value)||2000;    // co ile USDT ceny nowy schodek (Grid)
+  const gridGrowth = (parseFloat($('gridGrowth').value)||0)/100;  // % wzrostu na schód (Grid)
+  const vol      = (parseFloat($('vol').value)||0)/100;
+  const seed     = 12345;                                    // stały — tylko zmienność steruje losowością
+
+  if(bottom >= today) bottom = today - 500;
+  const cashDCA  = cash * split/100;
+  const cashGrid = cash * (100-split)/100;
+
+  $('gridStepVal').textContent = fmt0(gridStep);
+  $('volVal').textContent      = (parseFloat($('vol').value)||0)+'%';
+  $('splitVal').textContent  = fmt0(cashDCA)+' / '+fmt0(cashGrid)+' USDT';
+  $('segDca').style.width  = split+'%';
+  $('segGrid').style.width = (100-split)+'%';
+  $('segDca').textContent  = split>=20 ? 'DCA '+fmt0(cashDCA) : (split>=8 ? split+'%' : '');
+  $('segGrid').textContent = (100-split)>=20 ? 'Grid '+fmt0(cashGrid) : ((100-split)>=8 ? (100-split)+'%' : '');
+  const dropPerDay = days>1 ? (today-bottom)/(days-1) : 0;
+
+  // trend = gładki liniowy spadek (linia odniesienia)
+  const trend = [];
+  for(let d=0; d<days; d++) trend.push(today - dropPerDay*d);
+
+  // realna ścieżka = trend + przykładowa zmienność (deterministyczne błądzenie z odbiciami)
+  const rand = mulberry32(seed*99991 + 7);
+  const prices = [];
+  let wander = 0;
+  for(let d=0; d<days; d++){
+    if(d===0){ wander = 0; }                 // dziś = cena startowa (kotwica)
+    else {
+      const shock = rand()*2 - 1;            // [-1,1]
+      wander = wander*0.80 + shock*vol;      // mean-reverting → realistyczne odbicia w górę i dół
+    }
+    let p = trend[d] * (1 + wander);
+    if(p < 500) p = 500;
+    prices.push(p);
+  }
+
+  // DCA: domyślnie równo; opcjonalnie schody (kupuj więcej niżej) — ta sama logika co Grid
+  const dcaStepsOn = $('dcaSteps').checked;
+  const gridStepDca = parseFloat($('gridStepDca').value)||5000;
+  const gridGrowthDca = (parseFloat($('gridGrowthDca').value)||0)/100;
+  const perDayDCA = cashDCA/days;                     // średnia na dzień (do opisu)
+  let dcaCash, dcaInfo;
+  if(dcaStepsOn){
+    dcaInfo = buildSteps(cashDCA, gridStepDca, gridGrowthDca, today, bottom, trend, days);
+    dcaCash = dcaInfo.cash;
+  } else {
+    dcaCash = prices.map(()=> perDayDCA);
+    dcaInfo = null;
+  }
+
+  // Grid: schody cenowe
+  const grid = buildSteps(cashGrid, gridStep, gridGrowth, today, bottom, trend, days);
+  const gridCash = grid.cash;
+
+  const stepTxt = (s,pool)=> pool<=0 ? 'wyłączone (0% puli)'
+    : `${s.N} ${s.N===1?'schodek':'schodów'} · 1. ${fmt0(s.firstStep)} → ostatni ${fmt0(s.lastStep)} USDT`;
+  $('gridGrowthVal').textContent    = '+'+Math.round(gridGrowth*100)+'%';
+  $('gridGrowthDcaVal').textContent = '+'+Math.round(gridGrowthDca*100)+'%';
+  $('gridStepDcaVal').textContent   = fmt0(gridStepDca);
+  $('stepInfo').textContent    = stepTxt(grid, cashGrid);
+  $('stepInfoDca').textContent = dcaStepsOn ? stepTxt(dcaInfo, cashDCA) : 'równo co dzień (schody wyłączone)';
+  $('dcaStepsBox').classList.toggle('dim', !dcaStepsOn);
+
+  let dcaBtc=0, gridBtc=0, cumBtc=0;
+  const rows=[];
+  for(let d=0; d<days; d++){
+    const p=prices[d];
+    const dB=dcaCash[d]/p, gB=gridCash[d]/p;
+    dcaBtc+=dB; gridBtc+=gB; cumBtc+=dB+gB;
+    rows.push({d:d+1,p,dcaC:dcaCash[d],gridC:gridCash[d],tot:dcaCash[d]+gridCash[d],btc:dB+gB,cum:cumBtc});
+  }
+
+  const boughtBtc = dcaBtc+gridBtc;                // nowo dokupione
+  const totBtc  = boughtBtc + existingBtc;          // razem z posiadanymi
+  const buyAvg  = boughtBtc>0 ? cash/boughtBtc : 0; // średnia cena dokupu (tylko nowe)
+  const dcaAvg  = dcaBtc>0 ? cashDCA/dcaBtc : 0;
+  const gridAvg = gridBtc>0 ? cashGrid/gridBtc : 0;
+
+  return {cashMain,extraCash,cash,existingBtc,today,bottom,days,split,
+          gridStep,gridGrowth:grid.growthPct,gridN:grid.N,gridFirst:grid.firstStep,gridLast:grid.lastStep,gridLadder:grid.ladder,
+          dcaStepsOn,gridStepDca,dcaGrowth:dcaInfo?dcaInfo.growthPct:0,dcaN:dcaInfo?dcaInfo.N:0,dcaFirst:dcaInfo?dcaInfo.firstStep:0,dcaLast:dcaInfo?dcaInfo.lastStep:0,dcaLadder:dcaInfo?dcaInfo.ladder:null,
+          vol,dropPerDay,
+          prices,trend,dcaCash,gridCash,rows,cashDCA,cashGrid,dcaBtc,gridBtc,boughtBtc,totBtc,
+          buyAvg,dcaAvg,gridAvg,perDayDCA,
+          btcToday: today>0?cash/today:0, btcBottom: bottom>0?cash/bottom:0};
+}
+
+function render(){
+  const r = compute();
+
+  const poolNote = r.extraCash>0 ? ` (${fmt0(r.cashMain)} + ${fmt0(r.extraCash)} dodatkowe)` : '';
+  const volNote = r.vol>0 ? ` Zmienność <b>${(r.vol*100)}%</b> dziennie — cena wokół trendu się waha, z odbiciami w górę.` : '';
+  $('scenario').innerHTML =
+    `BTC spada z <b>${fmt0(r.today)}</b> do <b>${fmt0(r.bottom)}</b> USDT w <b>${r.days} dni</b> — `+
+    `trend <b>${fmt0(r.dropPerDay)} USDT/dzień</b>. `+
+    `Pula <b>${fmt0(r.cash)} USDT</b>${poolNote}: <b>${fmt0(r.cashDCA)}</b> na DCA (≈${fmt0(r.perDayDCA)}/dzień) + <b>${fmt0(r.cashGrid)}</b> na Grid.`+
+    volNote;
+
+  $('totBtc').innerHTML = `${fmt(r.totBtc,4)} <small>BTC</small>`;
+  $('heroBought').textContent = fmt(r.boughtBtc,4)+' BTC';
+  $('heroExisting').textContent = fmt(r.existingBtc,4)+' BTC';
+  $('totAvg').textContent = fmt0(r.buyAvg)+' USDT';
+  $('totValBottom').textContent = fmt0(r.totBtc*r.bottom)+' USDT';
+  $('totValToday').textContent = fmt0(r.totBtc*r.today)+' USDT';
+
+  $('dcaBtc').textContent = fmt(r.dcaBtc,4)+' BTC';
+  $('dcaInfo').textContent = `${fmt0(r.cashDCA)} USDT · śr. ${fmt0(r.dcaAvg)}`;
+  $('gridBtc').textContent = fmt(r.gridBtc,4)+' BTC';
+  $('gridInfo').textContent = `${fmt0(r.cashGrid)} USDT · śr. ${fmt0(r.gridAvg)}`;
+
+  $('refToday').textContent = fmt(r.btcToday,4)+' BTC';
+  $('refBottom').textContent = fmt(r.btcBottom,4)+' BTC';
+
+  buildCalendar(r.days);
+  drawLadder(r);
+  drawPriceChart(r);
+  drawCashChart(r);
+  drawTable(r);
+}
+
+function ladderHtml(title, ladder, color){
+  if(!ladder || !ladder.length) return '';
+  const maxA = Math.max(...ladder.map(s=>s.amount), 1);
+  const total = ladder.reduce((a,s)=>a+s.amount, 0);
+  const rows = ladder.map(s=>`
+    <div class="lad-row">
+      <div class="lad-i">${s.i}</div>
+      <div class="lad-price">${fmt0(s.pHi)} → ${fmt0(s.pLo)}</div>
+      <div class="lad-bar-wrap"><div class="lad-bar" style="width:${s.amount/maxA*100}%; background:${color}"></div></div>
+      <div class="lad-amt">${fmt0(s.amount)} USDT</div>
+      <div class="lad-btc">${fmt(s.btc,5)} BTC</div>
+    </div>`).join('');
+  return `<h4 class="lad-title">${title} — ${ladder.length} schodów · razem ${fmt0(total)} USDT</h4>
+    <div class="lad-head"><div class="lad-i">#</div><div class="lad-price">Przedział ceny</div><div class="lad-bar-wrap"></div><div class="lad-amt">Kwota</div><div class="lad-btc">≈ BTC</div></div>
+    ${rows}`;
+}
+function drawLadder(r){
+  $('ladderGrid').innerHTML = r.cashGrid>0 ? ladderHtml('📉 Grid', r.gridLadder, '#16a085') : '<div class="hint">Grid wyłączony (0% puli na Grid).</div>';
+  $('ladderDca').innerHTML = (r.dcaStepsOn && r.cashDCA>0) ? ladderHtml('🟦 DCA (schody)', r.dcaLadder, '#2980b9') : '';
+}
+
+function svgEl(tag, attrs){
+  const e=document.createElementNS('http://www.w3.org/2000/svg', tag);
+  for(const k in attrs) e.setAttribute(k, attrs[k]);
+  return e;
+}
+
+function drawPriceChart(r){
+  const W=800,H=260, mL=70,mR=20,mT=20,mB=34, pw=W-mL-mR, ph=H-mT-mB;
+  const svg=$('priceChart'); svg.innerHTML='';
+  // oś dynamiczna — uwzględnij wahania ponad/poniżej trendu
+  let max=Math.max(...r.prices, r.today), min=Math.min(...r.prices, r.bottom);
+  const pad=(max-min)*0.06||1; max+=pad; min=Math.max(0,min-pad);
+  const span=Math.max(max-min,1);
+  const x=i=> mL+(r.days>1? i/(r.days-1)*pw : pw/2);
+  const y=v=> mT+(max-v)/span*ph;
+  for(let g=0; g<=4; g++){
+    const val=max-span*g/4, yy=y(val);
+    svg.appendChild(svgEl('line',{x1:mL,y1:yy,x2:W-mR,y2:yy,stroke:'#eee'}));
+    const t=svgEl('text',{x:mL-8,y:yy+4,'text-anchor':'end','font-size':11,fill:'#888'}); t.textContent=fmt0(val); svg.appendChild(t);
+  }
+  [0,Math.floor(r.days/2),r.days-1].forEach(i=>{ const t=svgEl('text',{x:x(i),y:H-12,'text-anchor':'middle','font-size':11,fill:'#888'}); t.textContent='d'+(i+1); svg.appendChild(t); });
+  // pole pod realną ceną
+  let aPath=`M ${x(0)} ${y(min)} `;
+  r.prices.forEach((p,i)=> aPath+='L '+x(i)+' '+y(p)+' ');
+  aPath+=`L ${x(r.days-1)} ${y(min)} Z`;
+  svg.appendChild(svgEl('path',{d:aPath,fill:'rgba(41,128,185,.10)'}));
+  // linia trendu (odniesienie)
+  let tPath=''; r.trend.forEach((p,i)=> tPath+=(i===0?'M':'L')+' '+x(i)+' '+y(p)+' ');
+  svg.appendChild(svgEl('path',{d:tPath,fill:'none',stroke:'#b0bcc9','stroke-width':1.5,'stroke-dasharray':'5 5'}));
+  // realna (poszarpana) cena
+  let dPath=''; r.prices.forEach((p,i)=> dPath+=(i===0?'M':'L')+' '+x(i)+' '+y(p)+' ');
+  svg.appendChild(svgEl('path',{d:dPath,fill:'none',stroke:'#2980b9','stroke-width':2}));
+  svg.appendChild(svgEl('circle',{cx:x(0),cy:y(r.prices[0]),r:4,fill:'#2980b9'}));
+  svg.appendChild(svgEl('circle',{cx:x(r.days-1),cy:y(r.prices[r.days-1]),r:4,fill:'#e74c3c'}));
+}
+
+function drawCashChart(r){
+  const W=800,H=260, mL=70,mR=20,mT=20,mB=34, pw=W-mL-mR, ph=H-mT-mB;
+  const svg=$('cashChart'); svg.innerHTML='';
+  // DCA i Grid jako osobne linie (nie stackowane) — widać schody Grida
+  const maxC = Math.max(...r.gridCash, ...r.dcaCash, 1);
+  const y=v=> mT+(1 - v/maxC)*ph;
+  const x=i=> mL+(r.days>1? i/(r.days-1)*pw : pw/2);
+  for(let g=0; g<=4; g++){
+    const val=maxC*g/4, yy=y(val);
+    svg.appendChild(svgEl('line',{x1:mL,y1:yy,x2:W-mR,y2:yy,stroke:'#eee'}));
+    const t=svgEl('text',{x:mL-8,y:yy+4,'text-anchor':'end','font-size':11,fill:'#888'}); t.textContent=fmt0(val); svg.appendChild(t);
+  }
+  // ścieżka schodkowa (poziomo, potem skok na progu)
+  const stepPath = arr=>{ let p=`M ${x(0)} ${y(arr[0])} `; for(let i=1;i<r.days;i++){ p+=`L ${x(i)} ${y(arr[i-1])} L ${x(i)} ${y(arr[i])} `; } return p; };
+  // Grid jako schody
+  let gStep=stepPath(r.gridCash);
+  let gArea=gStep+`L ${x(r.days-1)} ${y(0)} L ${x(0)} ${y(0)} Z`;
+  svg.appendChild(svgEl('path',{d:gArea,fill:'rgba(22,160,133,.16)'}));
+  svg.appendChild(svgEl('path',{d:gStep,fill:'none',stroke:'#16a085','stroke-width':2.5}));
+  // DCA: schody gdy włączone, inaczej płaska linia przerywana
+  let dPath = r.dcaStepsOn ? stepPath(r.dcaCash) : (()=>{ let p=''; r.dcaCash.forEach((c,i)=> p+=(i===0?'M':'L')+' '+x(i)+' '+y(c)+' '); return p; })();
+  svg.appendChild(svgEl('path',{d:dPath,fill:'none',stroke:'#2980b9','stroke-width':2.5,'stroke-dasharray':r.dcaStepsOn?'none':'6 4'}));
+  [0,Math.floor(r.days/2),r.days-1].forEach(i=>{ const t=svgEl('text',{x:x(i),y:H-12,'text-anchor':'middle','font-size':11,fill:'#888'}); t.textContent='d'+(i+1); svg.appendChild(t); });
+}
+
+function drawTable(r){
+  $('tableBody').innerHTML = r.rows.map(o=>
+    `<tr>
+      <td>${o.d}</td><td>${fmtDate(dateAtDay(o.d-1))}</td><td>${fmt0(o.p)}</td>
+      <td>${fmt0(o.dcaC)}</td><td>${fmt0(o.gridC)}</td><td>${fmt0(o.tot)}</td>
+      <td>${fmt(o.btc,5)}</td><td>${fmt(o.cum,4)}</td>
+    </tr>`).join('');
+}
+
+function exportCsv(){
+  const r = compute();
+  const sep = ';';
+  const dec = (n,d)=> (n||0).toFixed(d).replace('.',',');
+  const start = startDateObj();
+  const endDt = new Date(start.getTime() + r.days*DAY_MS);
+  const dStr = dt=> fmtDate(dt)+' '+dt.getFullYear();
+  const L = [];
+  L.push('Scenariusz akumulacji BTC na bessę');
+  L.push('');
+  L.push(['Parametr','Wartość'].join(sep));
+  L.push(['Start zakupów', dStr(start)].join(sep));
+  L.push(['Koniec zakupów', dStr(endDt)].join(sep));
+  L.push(['Liczba dni', r.days].join(sep));
+  L.push(['Gotówka główna (USDT)', dec(r.cashMain,2)].join(sep));
+  L.push(['Dodatkowa gotówka (USDT)', dec(r.extraCash,2)].join(sep));
+  L.push(['Pula łączna (USDT)', dec(r.cash,2)].join(sep));
+  L.push(['BTC już posiadane', dec(r.existingBtc,8)].join(sep));
+  L.push(['Cena dziś (USDT)', dec(r.today,2)].join(sep));
+  L.push(['Cena na dołku (USDT)', dec(r.bottom,2)].join(sep));
+  L.push(['Spadek na dzień (USDT)', dec(r.dropPerDay,2)].join(sep));
+  L.push(['Podział DCA (%)', r.split].join(sep));
+  L.push(['Podział Grid (%)', 100-r.split].join(sep));
+  L.push(['Grid — próg ceny na schód (USDT)', dec(r.gridStep,0)].join(sep));
+  L.push(['Grid — liczba schodów', r.gridN].join(sep));
+  L.push(['Grid — wzrost na schód (%)', dec(r.gridGrowth,1)].join(sep));
+  L.push(['Grid — kwota 1. schodka (USDT)', dec(r.gridFirst,2)].join(sep));
+  L.push(['Grid — kwota ostatniego schodka (USDT)', dec(r.gridLast,2)].join(sep));
+  L.push(['DCA — schody', r.dcaStepsOn ? 'tak' : 'nie (równo)'].join(sep));
+  if(r.dcaStepsOn){
+    L.push(['DCA — próg ceny na schód (USDT)', dec(r.gridStepDca,0)].join(sep));
+    L.push(['DCA — liczba schodów', r.dcaN].join(sep));
+    L.push(['DCA — wzrost na schód (%)', dec(r.dcaGrowth,1)].join(sep));
+    L.push(['DCA — kwota 1. schodka (USDT)', dec(r.dcaFirst,2)].join(sep));
+    L.push(['DCA — kwota ostatniego schodka (USDT)', dec(r.dcaLast,2)].join(sep));
+  }
+  L.push(['Zmienność dzienna (%)', dec(r.vol*100,1)].join(sep));
+  L.push('');
+  L.push('WYNIK');
+  L.push(['Dokupione BTC', dec(r.boughtBtc,8)].join(sep));
+  L.push(['BTC już posiadane', dec(r.existingBtc,8)].join(sep));
+  L.push(['Razem BTC po akcji', dec(r.totBtc,8)].join(sep));
+  L.push(['Średnia cena dokupu (USDT)', dec(r.buyAvg,2)].join(sep));
+  L.push(['Część DCA: BTC', dec(r.dcaBtc,8)].join(sep));
+  L.push(['Część Grid: BTC', dec(r.gridBtc,8)].join(sep));
+  L.push(['Wartość na dnie (USDT)', dec(r.totBtc*r.bottom,2)].join(sep));
+  L.push(['Wartość po powrocie do dziś (USDT)', dec(r.totBtc*r.today,2)].join(sep));
+  L.push('');
+  L.push(['Dzień','Data','Cena','DCA USDT','Grid USDT','Razem USDT','BTC tego dnia','Suma BTC'].join(sep));
+  r.rows.forEach(o=>{
+    const dt = new Date(start.getTime() + (o.d-1)*DAY_MS);
+    L.push([o.d, dStr(dt), dec(o.p,2), dec(o.dcaC,2), dec(o.gridC,2), dec(o.tot,2), dec(o.btc,8), dec(o.cum,8)].join(sep));
+  });
+  const csv = '﻿' + L.join('\r\n');
+  const fname = 'scenariusz-btc-'+($('startDate').value||'plan')+'-'+r.days+'d.csv';
+
+  try {
+    const blob = new Blob([csv], {type:'text/csv;charset=utf-8;'});
+    // stary Edge / IE
+    if(window.navigator && window.navigator.msSaveBlob){
+      window.navigator.msSaveBlob(blob, fname);
+      return;
+    }
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = fname;
+    a.style.display = 'none';
+    document.body.appendChild(a);
+    a.click();
+    setTimeout(()=>{ document.body.removeChild(a); URL.revokeObjectURL(url); }, 1500);
+  } catch(err) {
+    // środowiska blokujące pobieranie (np. webview/podgląd) — otwórz w nowej karcie do zapisu ręcznego
+    try {
+      const w = window.open('', '_blank');
+      w.document.write('<pre>'+csv.replace(/[&<>]/g, c=>({'&':'&amp;','<':'&lt;','>':'&gt;'}[c]))+'</pre>');
+      w.document.title = fname;
+      alert('Pobieranie zablokowane w tym oknie. CSV otwarty w nowej karcie — zapisz go ręcznie jako '+fname);
+    } catch(e2){
+      alert('Nie udało się wyeksportować: '+err.message+'\\nOtwórz plik index.html bezpośrednio w przeglądarce (Chrome/Edge), nie w podglądzie.');
+    }
+  }
+}
+
+['cash','extraCash','existingBtc','priceToday','days','split','gridStep','gridGrowth','gridStepDca','gridGrowthDca','dcaSteps','vol','startDate'].forEach(id=> $(id).addEventListener('input', render));
+$('dcaSteps').addEventListener('change', render);
+
+// synchronizacja: suwak dna ↔ pole liczbowe dna
+$('bottom').addEventListener('input', ()=>{ $('bottomNum').value = $('bottom').value; render(); });
+$('bottomNum').addEventListener('input', ()=>{
+  const v = parseFloat($('bottomNum').value);
+  if(!isNaN(v)){ const r=$('bottom'); r.value = Math.max(+r.min, Math.min(+r.max, v)); }
+  render();
+});
+window.addEventListener('load', ()=>{
+  if(!$('startDate').value){
+    const t = new Date();
+    $('startDate').value = t.getFullYear()+'-'+String(t.getMonth()+1).padStart(2,'0')+'-'+String(t.getDate()).padStart(2,'0');
+  }
+  render();
+});
+</script>
+</body>
+</html>
