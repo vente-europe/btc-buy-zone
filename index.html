@@ -96,6 +96,11 @@
   .lad-bar { height:100%; border-radius:5px; min-width:2px; }
   .lad-amt { text-align:right; font-weight:700; }
   .lad-btc { text-align:right; color:#888; }
+  @media (max-width:620px){
+    .lad-head, .lad-row { grid-template-columns:24px 1fr 88px 92px; gap:6px; font-size:12px; }
+    .lad-bar-wrap { display:none; }
+    .lad-price { font-size:12px; }
+  }
 
   .scenario-box { background:#e8f4f8; border-left:4px solid #2196f3; padding:14px 16px; border-radius:10px; margin-top:18px; font-size:14px; color:#0d47a1; line-height:1.6; }
   .scenario-box b { color:#1e3c72; }
@@ -579,7 +584,7 @@ function ladderHtml(title, ladder, color){
       <div class="lad-btc">${fmt(s.btc,5)} BTC</div>
     </div>`).join('');
   return `<h4 class="lad-title">${title} — ${ladder.length} schodów · razem ${fmt0(total)} USDT</h4>
-    <div class="lad-head"><div class="lad-i">#</div><div class="lad-price">Przedział ceny</div><div class="lad-bar-wrap"></div><div class="lad-amt">Kwota</div><div class="lad-btc">≈ BTC</div></div>
+    <div class="lad-head"><div class="lad-i">#</div><div class="lad-price">Przedział ceny</div><div class="lad-bar-wrap"></div><div class="lad-amt">USDT (wydasz)</div><div class="lad-btc">≈ BTC (dostaniesz)</div></div>
     ${rows}`;
 }
 function drawLadder(r){
