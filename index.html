@@ -241,9 +241,9 @@
       <div class="slider-row">
         <div class="slider-head">
           <label style="margin:0;">Wzrost zakupu na schód — Grid (%)</label>
-          <span class="slider-val" id="gridGrowthVal">+50%</span>
+          <span class="slider-val" id="gridGrowthVal">+0%</span>
         </div>
-        <input type="range" id="gridGrowth" min="0" max="100" step="5" value="50">
+        <input type="range" id="gridGrowth" min="0" max="100" step="5" value="0">
         <div class="hint" id="stepInfo">—</div>
       </div>
     </div>
@@ -410,25 +410,29 @@ function buildCalendar(days){
   $('daysVal').textContent = days+' · do '+fmtDate(endDt);
 }
 
-// Rozkład schodkowy: liczba schodów z zasięgu spadku ÷ próg. Podajesz % wzrostu na schód;
-// kwota 1. (najniższego) schodka dopasowuje się tak, by suma schodów = pula. Wagi geometryczne.
+// Rozkład schodkowy. Liczone od KWOTY 1 ZLECENIA (co $100 ceny), nie od kwoty schodu —
+// dzięki temu przy 0% wzrostu każde zlecenie co $100 jest IDEALNIE równe (też w częściowym ostatnim schodzie).
+// Wzrost % rośnie geometrycznie na schód; kwota 1 zlecenia bazowego dopasowuje się tak, by suma = pula.
 function buildSteps(pool, step, growthFrac, today, bottom, trend, days){
-  const N = Math.max(1, Math.ceil((today - bottom)/step));   // liczba schodów (bez fantomowego ostatniego)
-  const w = [];
-  for(let b=0;b<N;b++) w.push(Math.pow(1+growthFrac, b));   // schód b = (1+wzrost)^b
-  const wSum = w.reduce((a,c)=>a+c,0) || 1;
-  const base = pool / wSum;                                 // 1. schodek dopasowany
-  const stepAmt = w.map(x=> base*x);                        // kwota na każdy schód
-  // przedziały cenowe schodów + szac. BTC (po cenie środka przedziału)
+  const N = Math.max(1, Math.ceil((today - bottom)/step));   // liczba schodów
+  const ordersIn = [], weight = [];
+  for(let b=0;b<N;b++){
+    const pHi = today - b*step;
+    const pLo = Math.max(bottom, today - (b+1)*step);
+    ordersIn.push(Math.max(1, Math.round((pHi-pLo)/100)));  // ile zleceń co $100 w tym schodzie
+    weight.push(Math.pow(1+growthFrac, b));                 // mnożnik wielkości zlecenia na schodzie
+  }
+  // base = kwota 1 zlecenia ($100) na pierwszym schodzie; tak, by Σ(zlecenia) = pula
+  const denom = ordersIn.reduce((a,o,b)=> a + o*weight[b], 0) || 1;
+  const perOrder = weight.map(w=> pool * w / denom);        // kwota 1 zlecenia co $100 na schodzie
+  const stepAmt  = perOrder.map((po,b)=> po*ordersIn[b]);   // suma całego schodu
   const ladder = [];
   for(let b=0;b<N;b++){
     const pHi = today - b*step;
     const pLo = Math.max(bottom, today - (b+1)*step);
     const pMid = (pHi+pLo)/2;
-    const nTx = Math.max(1, Math.round((pHi-pLo)/100));   // ile zakupów co $100 mieści ten schód
-    const txUsdt = stepAmt[b]/nTx;                        // wielkość 1 transakcji na tym poziomie
     ladder.push({i:b+1, pHi, pLo, amount:stepAmt[b], btc: pMid>0 ? stepAmt[b]/pMid : 0,
-                 nTx, txUsdt, txBtc: pMid>0 ? txUsdt/pMid : 0});
+                 nTx:ordersIn[b], txUsdt:perOrder[b], txBtc: pMid>0 ? perOrder[b]/pMid : 0});
   }
   // rozłóż kwotę schodu na dni należące do schodu (do wykresu/tabeli dziennej)
   const daysInBand = new Array(N).fill(0);
@@ -594,8 +598,13 @@ function ladderHtml(title, ladder, color, showTx){
         <div class="lad-txbtc">${fmt(s.txBtc,6)} BTC</div>
         <div class="lad-amt mob-hide">${fmt0(s.amount)} USDT</div>
       </div>`).join('');
+    const totalTx = ladder.reduce((a,s)=>a+s.nTx,0);
+    const even = Math.abs(ladder[0].txUsdt - ladder[ladder.length-1].txUsdt) < 0.01;
+    const sub = even
+      ? `<b>Równo:</b> ${fmt(ladder[0].txUsdt,2)} USDT na każde zlecenie co $100 ceny (${totalTx} zleceń razem). Zwiększ „Wzrost na schód", by kupować mocniej niżej.`
+      : `Zakup co $100 ceny (${totalTx} zleceń razem). Kolumna <b>„1 zakup ($100)"</b> to wielkość jednej transakcji — rośnie im niżej.`;
     return `<h4 class="lad-title">${title} — ${ladder.length} schodów · razem ${fmt0(total)} USDT</h4>
-      <div class="lad-sub">Zakup co $100 ceny → schód = <b>${ladder[0].nTx}</b> transakcji. Kolumna <b>„1 zakup ($100)"</b> to wielkość jednej transakcji na tym poziomie (rośnie im niżej).</div>
+      <div class="lad-sub">${sub}</div>
       <div class="lad-wrap lad-tx-cols">
         <div class="lad-head"><div class="lad-i">#</div><div class="lad-price">Przedział ceny</div><div class="lad-tx">1 zakup ($100)</div><div class="lad-txbtc">≈ BTC/zakup</div><div class="lad-amt mob-hide">Schód razem</div></div>
         ${rows}
