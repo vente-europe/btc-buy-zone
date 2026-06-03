@@ -96,9 +96,16 @@
   .lad-bar { height:100%; border-radius:5px; min-width:2px; }
   .lad-amt { text-align:right; font-weight:700; }
   .lad-btc { text-align:right; color:#888; }
+  .lad-tx { text-align:right; font-weight:700; color:#16a085; }
+  .lad-txbtc { text-align:right; color:#888; }
+  .lad-sub { font-size:12px; color:#555; margin-bottom:10px; line-height:1.5; }
+  .lad-tx-cols .lad-head, .lad-tx-cols .lad-row { grid-template-columns:30px 1fr 98px 104px 92px; }
   @media (max-width:620px){
-    .lad-head, .lad-row { grid-template-columns:24px 1fr 88px 92px; gap:6px; font-size:12px; }
+    .lad-head, .lad-row { gap:6px; font-size:12px; }
+    .lad-bar-cols .lad-head, .lad-bar-cols .lad-row { grid-template-columns:24px 1fr 88px 92px; }
     .lad-bar-wrap { display:none; }
+    .lad-tx-cols .lad-head, .lad-tx-cols .lad-row { grid-template-columns:22px 1fr 78px 86px; }
+    .lad-tx-cols .mob-hide { display:none; }
     .lad-price { font-size:12px; }
   }
 
@@ -418,7 +425,10 @@ function buildSteps(pool, step, growthFrac, today, bottom, trend, days){
     const pHi = today - b*step;
     const pLo = Math.max(bottom, today - (b+1)*step);
     const pMid = (pHi+pLo)/2;
-    ladder.push({i:b+1, pHi, pLo, amount:stepAmt[b], btc: pMid>0 ? stepAmt[b]/pMid : 0});
+    const nTx = Math.max(1, Math.round((pHi-pLo)/100));   // ile zakupów co $100 mieści ten schód
+    const txUsdt = stepAmt[b]/nTx;                        // wielkość 1 transakcji na tym poziomie
+    ladder.push({i:b+1, pHi, pLo, amount:stepAmt[b], btc: pMid>0 ? stepAmt[b]/pMid : 0,
+                 nTx, txUsdt, txBtc: pMid>0 ? txUsdt/pMid : 0});
   }
   // rozłóż kwotę schodu na dni należące do schodu (do wykresu/tabeli dziennej)
   const daysInBand = new Array(N).fill(0);
@@ -571,10 +581,26 @@ function render(){
   drawTable(r);
 }
 
-function ladderHtml(title, ladder, color){
+function ladderHtml(title, ladder, color, showTx){
   if(!ladder || !ladder.length) return '';
   const maxA = Math.max(...ladder.map(s=>s.amount), 1);
   const total = ladder.reduce((a,s)=>a+s.amount, 0);
+  if(showTx){
+    const rows = ladder.map(s=>`
+      <div class="lad-row">
+        <div class="lad-i">${s.i}</div>
+        <div class="lad-price">${fmt0(s.pHi)} → ${fmt0(s.pLo)}</div>
+        <div class="lad-tx">${fmt0(s.txUsdt)} USDT</div>
+        <div class="lad-txbtc">${fmt(s.txBtc,6)} BTC</div>
+        <div class="lad-amt mob-hide">${fmt0(s.amount)} USDT</div>
+      </div>`).join('');
+    return `<h4 class="lad-title">${title} — ${ladder.length} schodów · razem ${fmt0(total)} USDT</h4>
+      <div class="lad-sub">Zakup co $100 ceny → schód = <b>${ladder[0].nTx}</b> transakcji. Kolumna <b>„1 zakup ($100)"</b> to wielkość jednej transakcji na tym poziomie (rośnie im niżej).</div>
+      <div class="lad-wrap lad-tx-cols">
+        <div class="lad-head"><div class="lad-i">#</div><div class="lad-price">Przedział ceny</div><div class="lad-tx">1 zakup ($100)</div><div class="lad-txbtc">≈ BTC/zakup</div><div class="lad-amt mob-hide">Schód razem</div></div>
+        ${rows}
+      </div>`;
+  }
   const rows = ladder.map(s=>`
     <div class="lad-row">
       <div class="lad-i">${s.i}</div>
@@ -584,12 +610,14 @@ function ladderHtml(title, ladder, color){
       <div class="lad-btc">${fmt(s.btc,5)} BTC</div>
     </div>`).join('');
   return `<h4 class="lad-title">${title} — ${ladder.length} schodów · razem ${fmt0(total)} USDT</h4>
-    <div class="lad-head"><div class="lad-i">#</div><div class="lad-price">Przedział ceny</div><div class="lad-bar-wrap"></div><div class="lad-amt">USDT (wydasz)</div><div class="lad-btc">≈ BTC (dostaniesz)</div></div>
-    ${rows}`;
+    <div class="lad-wrap lad-bar-cols">
+      <div class="lad-head"><div class="lad-i">#</div><div class="lad-price">Przedział ceny</div><div class="lad-bar-wrap"></div><div class="lad-amt">USDT (wydasz)</div><div class="lad-btc">≈ BTC (dostaniesz)</div></div>
+      ${rows}
+    </div>`;
 }
 function drawLadder(r){
-  $('ladderGrid').innerHTML = r.cashGrid>0 ? ladderHtml('📉 Grid', r.gridLadder, '#16a085') : '<div class="hint">Grid wyłączony (0% puli na Grid).</div>';
-  $('ladderDca').innerHTML = (r.dcaStepsOn && r.cashDCA>0) ? ladderHtml('🟦 DCA (schody)', r.dcaLadder, '#2980b9') : '';
+  $('ladderGrid').innerHTML = r.cashGrid>0 ? ladderHtml('📉 Grid', r.gridLadder, '#16a085', true) : '<div class="hint">Grid wyłączony (0% puli na Grid).</div>';
+  $('ladderDca').innerHTML = (r.dcaStepsOn && r.cashDCA>0) ? ladderHtml('🟦 DCA (schody)', r.dcaLadder, '#2980b9', false) : '';
 }
 
 function svgEl(tag, attrs){
