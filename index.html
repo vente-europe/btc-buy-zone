@@ -139,11 +139,11 @@
     <div class="grid2">
       <div>
         <label>Gotówka do wydania (USDT)</label>
-        <input type="number" id="cash" value="50000" step="1000" min="0">
+        <input type="number" id="cash" value="" step="1000" min="0" placeholder="np. 50000">
       </div>
       <div>
         <label>Dodatkowa gotówka (opcja)</label>
-        <input type="number" id="extraCash" value="0" step="1000" min="0" placeholder="0">
+        <input type="number" id="extraCash" value="" step="1000" min="0" placeholder="0">
         <div class="hint">Dolicza się do głównej puli.</div>
       </div>
     </div>
@@ -151,11 +151,11 @@
     <div class="grid2" style="margin-top:20px;">
       <div>
         <label>Cena BTC dziś (USDT)</label>
-        <input type="number" id="priceToday" value="70000" step="1000" min="1">
+        <input type="number" id="priceToday" value="" step="1000" min="1" placeholder="np. 70000">
       </div>
       <div>
         <label>BTC już posiadane (opcja)</label>
-        <input type="number" id="existingBtc" value="0" step="0.01" min="0" placeholder="0">
+        <input type="number" id="existingBtc" value="" step="0.01" min="0" placeholder="0">
         <div class="hint">Dolicza się do końcowego stanu i wartości portfela.</div>
       </div>
     </div>
@@ -164,7 +164,7 @@
       <div class="slider-row">
         <div class="slider-head">
           <label style="margin:0;">Cena na końcu okresu (dno, USDT)</label>
-          <input type="number" id="bottomNum" class="slider-num" value="30000" step="500" min="0">
+          <input type="number" id="bottomNum" class="slider-num" value="" step="500" min="0" placeholder="np. 30000">
         </div>
         <input type="range" id="bottom" min="10000" max="150000" step="500" value="30000">
         <div class="hint">Cena, której oczekujesz na końcu okresu — wpisz dokładnie lub przesuń suwak.</div>
