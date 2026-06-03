@@ -600,9 +600,10 @@ function ladderHtml(title, ladder, color, showTx){
       </div>`).join('');
     const totalTx = ladder.reduce((a,s)=>a+s.nTx,0);
     const even = Math.abs(ladder[0].txUsdt - ladder[ladder.length-1].txUsdt) < 0.01;
+    const ratio = ladder.length>1 ? Math.round((ladder[1].txUsdt/ladder[0].txUsdt - 1)*100) : 0;
     const sub = even
       ? `<b>Równo:</b> ${fmt(ladder[0].txUsdt,2)} USDT na każde zlecenie co $100 ceny (${totalTx} zleceń razem). Zwiększ „Wzrost na schód", by kupować mocniej niżej.`
-      : `Zakup co $100 ceny (${totalTx} zleceń razem). Kolumna <b>„1 zakup ($100)"</b> to wielkość jednej transakcji — rośnie im niżej.`;
+      : `Każde zlecenie co $100 jest <b>równe w obrębie schodu</b>, a na kolejnym schodzie <b>+${ratio}%</b> większe (mocniej niżej). Razem ${totalTx} zleceń. Kolumna „1 zakup ($100)" = wielkość jednej transakcji.`;
     return `<h4 class="lad-title">${title} — ${ladder.length} schodów · razem ${fmt0(total)} USDT</h4>
       <div class="lad-sub">${sub}</div>
       <div class="lad-wrap lad-tx-cols">
