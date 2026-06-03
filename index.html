@@ -81,6 +81,11 @@
   .steps-head { font-weight:700; color:#1e3c72; font-size:14px; margin:20px 0 10px; }
   .dim { opacity:.45; pointer-events:none; }
 
+  .dca-freq { background:#eef6ff; border:1px solid #cfe2ff; border-radius:9px; padding:12px 14px; font-size:13px; color:#1e3c72; margin-bottom:12px; }
+  .dca-freq .ttl { font-weight:700; margin-bottom:7px; }
+  .dca-freq .row { display:flex; justify-content:space-between; gap:10px; padding:4px 0; border-top:1px solid #dceaff; }
+  .dca-freq .row b { font-size:15px; }
+
   .lad-title { color:#1e3c72; font-size:15px; margin-bottom:10px; }
   .lad-head, .lad-row { display:grid; grid-template-columns:36px 150px 1fr 110px 110px; gap:10px; align-items:center; }
   .lad-head { font-size:11px; color:#888; text-transform:uppercase; padding:4px 0; border-bottom:2px solid #eee; }
@@ -238,6 +243,7 @@
       </label>
     </div>
     <div class="hint" style="margin:-4px 0 10px;">ℹ️ Domyślnie DCA jest <b>stały</b> — kwota przeznaczona na DCA jest rozbijana równo na liczbę dni (kwota/dzień = pula DCA ÷ dni). Zaznacz powyżej, by zamiast tego kupować schodami, mocniej na niższych cenach.</div>
+    <div class="dca-freq" id="dcaFreqInfo"></div>
     <div class="grid2 dim" id="dcaStepsBox">
       <div class="slider-row">
         <div class="slider-head">
@@ -495,6 +501,12 @@ function compute(){
   $('stepInfo').textContent    = stepTxt(grid, cashGrid);
   $('stepInfoDca').textContent = dcaStepsOn ? stepTxt(dcaInfo, cashDCA)
     : (cashDCA>0 ? `stały — ${fmt0(perDayDCA)} USDT/dzień (pula DCA ÷ ${days} dni)` : 'DCA wyłączony (0% puli)');
+  $('dcaFreqInfo').innerHTML = cashDCA>0 ? `
+    <div class="ttl">Wielkość 1 transakcji DCA (pula ${fmt0(cashDCA)} USDT na ${days} dni):</div>
+    <div class="row"><span>co 1 dzień · ${days} transakcji</span><b>${fmt(perDayDCA,2)} USDT</b></div>
+    <div class="row"><span>co 4h · ${days*6} transakcji</span><b>${fmt(perDayDCA/6,2)} USDT</b></div>
+    <div class="row"><span>co 1h · ${days*24} transakcji</span><b>${fmt(perDayDCA/24,2)} USDT</b></div>`
+    : '<div class="ttl">Ustaw pulę i podział, by zobaczyć wielkość transakcji DCA.</div>';
   $('dcaStepsBox').classList.toggle('dim', !dcaStepsOn);
 
   let dcaBtc=0, gridBtc=0, cumBtc=0;
